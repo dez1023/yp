@@ -293,10 +293,9 @@ function script() {
   }
 }
 
-if (document.readyState === 'complete') {
-  script();
-} else {
-  window.addEventListener('load', () => {
+const waitInterval = setInterval(() => {
+  if (document.getElementById("rightControls")) {
+    clearInterval(waitInterval);
     script();
-  });
-}
+  };
+}, 1000);
