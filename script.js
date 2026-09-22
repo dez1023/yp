@@ -294,7 +294,9 @@ function script() {
 }
 
 const waitInterval = setInterval(() => {
+  console.log("wait");
   if (document.getElementById("rightControls")) {
+    console.log("start");
     clearInterval(waitInterval);
     script();
   };
