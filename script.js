@@ -1,3 +1,14 @@
+console.log("-- script loaded --");
+
+const waitInterval = setInterval(() => {
+  console.log("wait");
+  if (document.getElementById("rightControls")) {
+    console.log("start");
+    clearInterval(waitInterval);
+    script();
+  };
+}, 1000);
+
 function script() {
   let pipWindow;
   const pippedElements = new Map();
@@ -292,12 +303,3 @@ function script() {
     }
   }
 }
-
-const waitInterval = setInterval(() => {
-  console.log("wait");
-  if (document.getElementById("rightControls")) {
-    console.log("start");
-    clearInterval(waitInterval);
-    script();
-  };
-}, 1000);
