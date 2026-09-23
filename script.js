@@ -1,8 +1,6 @@
-try {
+function init() {
   console.log("-- script loaded --");
-
   let waitTimeout = 0;
-
   const waitInterval = setInterval(() => {
     console.log("wait");
     waitTimeout++;
@@ -13,36 +11,37 @@ try {
       script();
     };
   }, 2000);
+}
 
-  function script() {
-    let pipWindow;
-    const pippedElements = new Map();
+function script() {
+  let pipWindow;
+  const pippedElements = new Map();
 
-    const
-      canvasElement = document.getElementById("canvas"),
-      rightControls = document.getElementById("rightControls"),
-      location = document.getElementById("location"),
-      nextLocation = document.getElementById("nextLocationContainer"),
-      eventsModal = document.getElementById("eventsModal");
+  const
+    canvasElement = document.getElementById("canvas"),
+    rightControls = document.getElementById("rightControls"),
+    location = document.getElementById("location"),
+    nextLocation = document.getElementById("nextLocationContainer"),
+    eventsModal = document.getElementById("eventsModal");
 
-    function getElementsFromString(html) {
-      const temp = document.createElement("div");
-      temp.innerHTML = html;
-      const out = temp.children;
-      delete temp;
-      return out;
+  function getElementsFromString(html) {
+    const temp = document.createElement("div");
+    temp.innerHTML = html;
+    const out = temp.children;
+    delete temp;
+    return out;
+  }
+
+  function replaceSearchMethod(funcName) {
+    const ogFunc = document[funcName];
+    document[funcName] = function () {
+      const fallback = ogFunc.call(document, ...arguments);
+      if (!fallback && pipWindow) return pipWindow.document[funcName](...arguments);
+      return fallback;
     }
+  }
 
-    function replaceSearchMethod(funcName) {
-      const ogFunc = document[funcName];
-      document[funcName] = function () {
-        const fallback = ogFunc.call(document, ...arguments);
-        if (!fallback && pipWindow) return pipWindow.document[funcName](...arguments);
-        return fallback;
-      }
-    }
-
-    const [filler, enterBtn] = getElementsFromString(`
+  const [filler, enterBtn] = getElementsFromString(`
   <div id="_filler">
     <p style="color: #fff; height: min-content; text-align: center">Picture In Picture<br/>(Press this or close the window to pop back in!)</p>
   </div>
@@ -54,7 +53,7 @@ try {
   </button>
 `);
 
-    filler.style = `
+  filler.style = `
   background-color: black;
   display: none;
   aspect-ratio: 320/240;
@@ -64,79 +63,79 @@ try {
   cursor: pointer;
 `;
 
-    document.getElementById("canvasContainer").appendChild(filler);
-    rightControls.prepend(enterBtn);
-    enterBtn.onclick = () => pipElement(canvasElement);
-    filler.onclick = () => unPipElement(canvasElement);
+  document.getElementById("canvasContainer").appendChild(filler);
+  rightControls.prepend(enterBtn);
+  enterBtn.onclick = () => pipElement(canvasElement);
+  filler.onclick = () => unPipElement(canvasElement);
 
-    const ogOpenModal = openModal;
-    openModal = function (modalId, theme, lastModalId, modalData) {
-      if (modalId === "eventsModal" && pipWindow) {
+  const ogOpenModal = openModal;
+  openModal = function (modalId, theme, lastModalId, modalData) {
+    if (modalId === "eventsModal" && pipWindow) {
+      const pipDoc = pipWindow.document;
+      const modal = pipDoc.getElementById("pipModalContainer");
+      modal.classList.remove("hidden");
+      eventsModal.classList.remove("hidden");
+    } else {
+      ogOpenModal(modalId, theme, lastModalId, modalData);
+    }
+  }
+
+  const ogOpenWikiModal = openWikiModal;
+  openWikiModal = function (url, asImg) {
+    if (pipWindow && pippedElements.get("canvas")) {
+      if (asImg) {
         const pipDoc = pipWindow.document;
         const modal = pipDoc.getElementById("pipModalContainer");
+        const wikiFrame = pipDoc.getElementById("pipWikiFrame");
         modal.classList.remove("hidden");
-        eventsModal.classList.remove("hidden");
+        wikiFrame.classList.remove("hidden");
+        if (wikiFrame.src === url) return;
+        wikiFrame.style.width = "0px";
+        wikiFrame.style.height = "0px";
+        //shut
+        document.head.appendChild(wikiFrame);
+        wikiFrame.src = url;
+        wikiFrame.addEventListener("load", () => {
+          console.log("loaded");
+          wikiFrame.style.width = null;
+          wikiFrame.style.height = null;
+          modal.appendChild(wikiFrame);
+        }, { once: true });
       } else {
-        ogOpenModal(modalId, theme, lastModalId, modalData);
+        openInPopup(url);
       }
+    } else {
+      ogOpenWikiModal(url, asImg);
     }
+  };
 
-    const ogOpenWikiModal = openWikiModal;
-    openWikiModal = function (url, asImg) {
-      if (pipWindow && pippedElements.get("canvas")) {
-        if (asImg) {
-          const pipDoc = pipWindow.document;
-          const modal = pipDoc.getElementById("pipModalContainer");
-          const wikiFrame = pipDoc.getElementById("pipWikiFrame");
-          modal.classList.remove("hidden");
-          wikiFrame.classList.remove("hidden");
-          if (wikiFrame.src === url) return;
-          wikiFrame.style.width = "0px";
-          wikiFrame.style.height = "0px";
-          //shut
-          document.head.appendChild(wikiFrame);
-          wikiFrame.src = url;
-          wikiFrame.addEventListener("load", () => {
-            console.log("loaded");
-            wikiFrame.style.width = null;
-            wikiFrame.style.height = null;
-            modal.appendChild(wikiFrame);
-          }, { once: true });
-        } else {
-          openInPopup(url);
-        }
-      } else {
-        ogOpenWikiModal(url, asImg);
-      }
-    };
+  replaceSearchMethod("getElementById");
+  replaceSearchMethod("querySelector");
 
-    replaceSearchMethod("getElementById");
-    replaceSearchMethod("querySelector");
+  function openInPopup(url) {
+    const width = 200;
+    const height = 150;
+    const pipX = pipWindow ? pipWindow.screenX : 0;
+    const pipY = pipWindow ? pipWindow.screenY : 0;
+    console.log(pipX, pipY);
+    window.open(url, 'wikiPopup', `popup=true,width=${width},height=${height},left=${pipX},top=${pipY + 130}`);
+  }
 
-    function openInPopup(url) {
-      const width = 200;
-      const height = 150;
-      const pipX = pipWindow ? pipWindow.screenX : 0;
-      const pipY = pipWindow ? pipWindow.screenY : 0;
-      console.log(pipX, pipY);
-      window.open(url, 'wikiPopup', `popup=true,width=${width},height=${height},left=${pipX},top=${pipY + 130}`);
-    }
+  async function pipElement(element) {
+    const id = element.id;
+    if (pippedElements.get(id)) return;
 
-    async function pipElement(element) {
-      const id = element.id;
-      if (pippedElements.get(id)) return;
+    const originalParent = element.parentElement;
 
-      const originalParent = element.parentElement;
+    pipWindow = await window.documentPictureInPicture.requestWindow({
+      width: 200,
+      height: 150,
+    });
 
-      pipWindow = await window.documentPictureInPicture.requestWindow({
-        width: 200,
-        height: 150,
-      });
+    const pipDoc = pipWindow.document, pipBody = pipDoc.body;
 
-      const pipDoc = pipWindow.document, pipBody = pipDoc.body;
-
-      if (id === "canvas") {
-        pipWindow.document.head.innerHTML = `
+    if (id === "canvas") {
+      pipWindow.document.head.innerHTML = `
     <style>
       body {
         margin: 0;
@@ -250,64 +249,61 @@ try {
     </style>
   `;
 
-        const locationContainer = document.createElement("div"),
-          modal = document.createElement("div"),
-          wikiFrame = document.createElement("iframe");
+      const locationContainer = document.createElement("div"),
+        modal = document.createElement("div"),
+        wikiFrame = document.createElement("iframe");
 
-        locationContainer.id = "locationContainer", modal.id = "pipModalContainer", wikiFrame.id = "pipWikiFrame";
+      locationContainer.id = "locationContainer", modal.id = "pipModalContainer", wikiFrame.id = "pipWikiFrame";
+      modal.classList.add("hidden");
+      wikiFrame.classList.add("hidden");
+      eventsModal.classList.add("hidden");
+      filler.style.display = "flex";
+
+      modal.onclick = (e) => {
+        if (e.target !== e.currentTarget) return;
         modal.classList.add("hidden");
         wikiFrame.classList.add("hidden");
         eventsModal.classList.add("hidden");
-        filler.style.display = "flex";
+      };
 
-        modal.onclick = (e) => {
-          if (e.target !== e.currentTarget) return;
-          modal.classList.add("hidden");
-          wikiFrame.classList.add("hidden");
-          eventsModal.classList.add("hidden");
-        };
+      pipBody.appendChild(locationContainer);
+      pipBody.appendChild(modal);
+      pipBody.appendChild(rightControls);
+      locationContainer.appendChild(location);
+      locationContainer.appendChild(nextLocation);
+      modal.appendChild(wikiFrame);
+      modal.appendChild(eventsModal);
 
-        pipBody.appendChild(locationContainer);
-        pipBody.appendChild(modal);
-        pipBody.appendChild(rightControls);
-        locationContainer.appendChild(location);
-        locationContainer.appendChild(nextLocation);
-        modal.appendChild(wikiFrame);
-        modal.appendChild(eventsModal);
-
-        pipDoc.addEventListener('click', e => {
-          const target = e.target.closest('a');
-          if (target && target.classList.contains('wikiLink') && openWikiLink(target.href, true)) e.preventDefault();
-        });
-      }
-
-      pipWindow.addEventListener("pagehide", () => unPipElement(element), { once: true });
-      pipWindow.document.body.appendChild(element);
-
-      pippedElements.set(id, {
-        element,
-        originalParent,
+      pipDoc.addEventListener('click', e => {
+        const target = e.target.closest('a');
+        if (target && target.classList.contains('wikiLink') && openWikiLink(target.href, true)) e.preventDefault();
       });
     }
 
-    function unPipElement(element) {
-      const id = element.id;
-      const pipData = pippedElements.get(id);
+    pipWindow.addEventListener("pagehide", () => unPipElement(element), { once: true });
+    pipWindow.document.body.appendChild(element);
 
-      if (!pipData) return;
-      pipData.originalParent.appendChild(element);
-      pippedElements.delete(id);
+    pippedElements.set(id, {
+      element,
+      originalParent,
+    });
+  }
 
-      if (id === "canvas") {
-        filler.style.display = "none";
-        document.getElementById("controls").appendChild(rightControls);
-        document.getElementById("chatboxInfo").appendChild(location);
-        document.getElementById("chatboxInfo").appendChild(nextLocation);
-        document.getElementById("modalContainer").appendChild(eventsModal);
-        pipWindow.close();
-      }
+  function unPipElement(element) {
+    const id = element.id;
+    const pipData = pippedElements.get(id);
+
+    if (!pipData) return;
+    pipData.originalParent.appendChild(element);
+    pippedElements.delete(id);
+
+    if (id === "canvas") {
+      filler.style.display = "none";
+      document.getElementById("controls").appendChild(rightControls);
+      document.getElementById("chatboxInfo").appendChild(location);
+      document.getElementById("chatboxInfo").appendChild(nextLocation);
+      document.getElementById("modalContainer").appendChild(eventsModal);
+      pipWindow.close();
     }
   }
-} catch(err) {
-  console.log(err.message);
 }
